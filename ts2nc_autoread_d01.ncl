@@ -29,21 +29,15 @@ begin
 
     domainstring       = ".d01."
 
-    wrf_full_model_file =  "nam02_d01_"+run_date+".nc"
+      wrf_full_model_file =  "wrfout_d02_"+run_date+".nc"
 
     print(wrf_full_model_file)
 
     tke_on   = True
     soils_on = True
 
-    station_id =  (/ "CRSV", \
-                     "FYGB", \
-                     "FYGF", \
-                     "FYOO", \
-                     "FYOW", \
-                     "FYWH", \
-                     "FYWB", \
-                     "FYRU"  /)
+    station_id =  (/ "KRAP", \
+                     "KCUT" /)
 
 
     f_wrf = addfile(dir_for_wrf_output + wrf_full_model_file + ".nc", "r")
