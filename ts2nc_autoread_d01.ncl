@@ -5,44 +5,89 @@
 ;
 ; $NCARG_ROOT is /usr on gamow
 ;
-load "/home/wcapehart/lib/ncarg/nclscripts/csm/gsn_code.ncl"
-load "/home/wcapehart/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
-load "/home/wcapehart/lib/ncarg/nclscripts/wrf/WRF_contributed.ncl"
-load "/home/wcapehart/lib/ncarg/nclscripts/wrf/WRFUserARW.ncl"
-load "/home/wcapehart/lib/ncarg/nclscripts/csm/contributed.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/wrf/WRF_contributed.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/wrf/WRFUserARW.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 begin
 
-    setfileoption("nc","Format","NetCDF4")  ; these are going to be big files
-    setfileoption("nc","CompressionLevel",5)
+   domainstring_code  = "d01"
 
-    dir_local            = "/home/wcapehart/WRFV381_TKE/"
-    wrf_home_dir         = "/home/wcapehart/WRFV381_TKE/"
-    wrf_version          = "WRFV381"
+   domainstring  = "." + domainstring_code + "."
+
+
+
+    dir_local            = "$HOME/WRF_REALTIME/"
+    wrf_home_dir         = "$HOME/WRF_REALTIME/"
+    wrf_version          = "WRFV3911_TKE"
+
     wrf_program_root_dir = wrf_home_dir + wrf_version+"/"
 
     dir_for_wrf_output = wrf_program_root_dir+"WRFV3/test/em_real/"
 
+    print("cat " + dir_local + "current_day.txt")
+    print("cat " + wrf_program_root_dir + "current_day.txt")
+
     run_date = systemfunc("cat " + dir_local + "current_day.txt")
+    run_date = systemfunc("cat " + wrf_program_root_dir + "current_day.txt")
 
-    domainstring       = ".d01."
 
-      wrf_full_model_file =  "wrfout_d02_"+run_date+".nc"
+      wrf_full_model_file =  "wrfout_"+domainstring_code+"_"+run_date
+      wrf_full_model_file =  "wrfout_"+domainstring_code+"_"+run_date+":00:00"
 
-    print(wrf_full_model_file)
+    print(""+wrf_full_model_file)
 
     tke_on   = True
     soils_on = True
 
-    station_id =  (/ "KRAP", \
-                     "KCUT" /)
+    setfileoption("nc","Format","NetCDF4")  ; these are going to be big files
+    setfileoption("nc","CompressionLevel",5)
+
+    station_id =  (/ "KUNR", \
+                     "KRAP", \
+                     "KRCA", \
+                     "KUDX", \
+                     "KCUT", \
+                     "KSPF", \
+                     "KEFC", \
+                     "KPHP", \
+                     "KIEN", \
+                     "KCDR", \
+                     "KD07", \
+                     "KW43", \
+                     "K4MC", \
+                     "KGRN", \
+                     "K2WX", \
+                     "KGCC", \
+                     "KY22", \
+                     "KLEM", \
+                     "KHEI" /)
 
 
     f_wrf = addfile(dir_for_wrf_output + wrf_full_model_file + ".nc", "r")
 
-    sigmas      = f_wrf->ZNU(0,:)
+    sigmas       = f_wrf->ZNU(0,:)
+
+
+    sigmas_w       = f_wrf->ZNW(0,:)
+
+    sigmas_bounds   = new((/  dimsizes(sigmas),2 /), float)
+    sigmas_bounds!1 = "bnds"
+
+   sigmas_bounds(:,0) = (/ sigmas_w(0:dimsizes(sigmas_w)-2) /)
+   sigmas_bounds(:,1) = (/ sigmas_w(1:dimsizes(sigmas_w)-1) /)
+
+    sigmas_wbounds  = new((/  dimsizes(sigmas_w),2 /), float)
+    sigmas_wbounds!1 = "bnds"
+    sigmas_wbounds(1:dimsizes(sigmas_w)-1,0) =  (/ sigmas(0:dimsizes(sigmas)-1) /)
+    sigmas_wbounds(0,0) =  (/ sigmas_w(0) /)
+
+    sigmas_wbounds(0:dimsizes(sigmas_w)-2,1) = (/ sigmas(0:dimsizes(sigmas)-1) /)
+    sigmas_wbounds(dimsizes(sigmas_w)-1,1) =  (/ sigmas_w(dimsizes(sigmas_w)-1) /)
 
     wrf_elev    = f_wrf->HGT(0,:,:)
 
@@ -51,12 +96,33 @@ begin
        delete(soil_levels@FieldType)
        delete(soil_levels@MemoryOrder)
        soil_levels!0             = "soil_levels"
+       soil_levels@bounds        = "soil_level_bounds"
        soil_levels&soil_levels   = soil_levels
        soil_levels@positive      = "down"
        soil_levels@standard_name = "depth"
        soil_levels@long_name     = "Depths of Center of the Soil Layers"
        soil_levels@description   = "Depths of Center of the Soil Layers"
        soil_levels@units         = "m"
+       soil_levels@axis          = "Z"
+
+       soil_level_bounds = new((/ dimsizes(soil_levels), 2/), float)
+          soil_level_bounds!0             = "soil_levels"
+          soil_level_bounds&soil_levels   = soil_levels
+          soil_level_bounds@positive      = "down"
+          soil_level_bounds@standard_name = "depth"
+          soil_level_bounds@long_name     = "Bounds for Depths Soil Layers"
+          soil_level_bounds@description   = "Bounds for Depths Soil Layers"
+          soil_level_bounds@units         = "m"
+
+           DZS = f_wrf->DZS(0,:)
+
+          soil_level_bounds(0,0) = 0.0
+          soil_level_bounds(0,1) = (/ DZS(0) /)
+
+         do k =  1, dimsizes(soil_levels)-1
+            soil_level_bounds(k,0) = soil_level_bounds(k-1,1)
+            soil_level_bounds(k,1) = soil_level_bounds(k,0)  + (/ DZS(k) /)
+         end do
 
 
     wrf_time     = wrf_times_c(f_wrf->Times, 0 )
@@ -79,16 +145,57 @@ begin
     sigma               = (/ sigmas(0:nlevels-1) /)
     sigma!0             = "sigma"
     sigma&sigma         = sigma
+    sigma@bounds        = "sigma_bounds"
     sigma@units         = ""
-    sigma@long_name     = "Sigma Coordinate from WRF"
-    sigma@description   = "Sigma Coordinate from WRF"
+    sigma@long_name     = "Sigma Coordinate from WRF at Mass points"
+    sigma@description   = "Sigma Coordinate from WRF at Mass points"
     sigma@standard_name = "atmosphere_sigma_coordinate"
-    sigma@comment1      = "pressure(n,k) = ptop + sigma(k)*(psfc(n,k)-ptop)"
+    sigma@comment1      = "pressure(n,k) = ptop + sigma(k)*(ps(n,k)-ptop)"
     sigma@formula_terms = "sigma: sigma ps: psfc ptop: ptop"
     sigma@positive      = "down"
+    sigma@axis          = "Z"
 
+
+
+    sigma_w               = (/ sigmas_w(0:nlevels-1) /)
+    sigma_w!0             = "sigma_w"
+    sigma_w&sigma_w       = sigma_w
+    sigma@bounds          = "sigma_w_bounds"
+    sigma_w@units         = ""
+    sigma_w@long_name     = "Sigma Coordinate from WRF at W points"
+    sigma_w@description   = "Sigma Coordinate from WRF at W points"
+    sigma_w@standard_name = "atmosphere_sigma_coordinate"
+    sigma_w@comment1      = "pressure(n,k) = ptop + sigma(k)*(ps(n,k)-ptop)"
+    sigma_w@formula_terms = "sigma: sigma_w ps: psfc ptop: ptop"
+    sigma_w@positive      = "down"
+    sigma_w@axis          = "Z"
+
+    sigma_bounds               = (/ sigmas_bounds(0:nlevels-1,:) /)
+    sigma_bounds!0             = "sigma"
+    sigma_bounds!1             = "bnds"
+    sigma_bounds&sigma         = sigma
+    sigma_bounds@units         = ""
+    sigma_bounds@long_name     = "Bounds for Sigma Coordinate from WRF at Mass points"
+    sigma_bounds@description   = "Bounds for Sigma Coordinate from WRF at Mass points"
+    sigma_bounds@standard_name = "atmosphere_sigma_coordinate"
+    sigma_bounds@comment1      = "pressure(n,k) = ptop + sigma(k)*(ps(n,k)-ptop)"
+    sigma_bounds@formula_terms = "sigma: sigma_bounds ps: psfc ptop: ptop"
+    sigma_bounds@positive      = "down"
+
+
+
+    sigma_w_bounds               = (/ sigmas_wbounds(0:nlevels-1,:) /)
+    sigma_w_bounds!0             = "sigma_w"
+    sigma_w_bounds!1             = "bnds"
+    sigma_w_bounds&sigma_w       = sigma_w
+    sigma_w_bounds@units         = ""
+    sigma_w_bounds@long_name     = "Bounds for Sigma Coordinate from WRF at W points"
+    sigma_w_bounds@description   = "Bounds for Sigma Coordinate from WRF at W points"
+    sigma_w_bounds@standard_name = "atmosphere_sigma_coordinate"
+    sigma_w_bounds@comment1      = "pressure(n,k) = ptop +  sigma(k)*(ps(n,k)-ptop)"
+    sigma_w_bounds@formula_terms = "sigma: sigma_w_bounds ps: psfc ptop: ptop"
+    sigma_w_bounds@positive      = "down"
     ; run date must be in this format "2015-02-08_12" "YYYY-MM-DD_HH"
-    run_date = "2015-01-23_12"
 
     run_date = sprinti("%0.4i-", wrf_utc_date(0,0)) + \
                sprinti("%0.2i-", wrf_utc_date(0,1)) + \
@@ -111,6 +218,9 @@ begin
 
 
 do ss = 0, dimsizes(station_id)-1
+   print("")
+   print("==============================================")
+   print("====== #" + ss + " == " + station_id(ss) )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
    filename = station_id(ss) +  domainstring  +"TS"
@@ -175,7 +285,6 @@ do ss = 0, dimsizes(station_id)-1
 
    time = data(:,1)
       time_min = round( time(0),0)
-      print(time_min)
       time(:)            = (/ time - time_min /)
       time@long_name     = "Time"
       time@description   = "Time"
@@ -183,8 +292,6 @@ do ss = 0, dimsizes(station_id)-1
       time@units         = "hours since "+ datestring + " "+  hourstring + ":00:00"
       time!0             = "time"
       time&time          = time
-   print("maxtime = "+max(time))
-
 
    domain = data(0,0)
      domain@long_name = "WRF Domain Nest"
@@ -259,7 +366,6 @@ do ss = 0, dimsizes(station_id)-1
    rh = where(rh .lt. 0, 0, rh)
    rh = where(rh .gt.100,100,rh)
    rh!0 = "time"
-   printVarSummary(rh)
 
    dewpoint=temperature
    dewpoint(:) = dewtemp_trh(temperature, rh)
@@ -269,8 +375,6 @@ do ss = 0, dimsizes(station_id)-1
    dewpoint@units = "K"
    dewpoint!0 = "time"
    dewpoint@coordinates   = "time lat lon alt" ;
-   printVarSummary(dewpoint)
-   printVarSummary(temperature)
 
    glw = data(:,10)
       glw@long_name     = "Surface Downward Longwave Radiation"
@@ -343,7 +447,6 @@ do ss = 0, dimsizes(station_id)-1
   delete(data)
 
    filename = station_id(ss) + domainstring + "UU"
-   print(filename)
 
    data = readAsciiTable(dir_for_wrf_output + filename, (1+nlevels), "float", 1)
       data!0       = "time"
@@ -374,7 +477,6 @@ do ss = 0, dimsizes(station_id)-1
   delete(data)
 
    filename = station_id(ss) + domainstring + "VV"
-   print(filename)
 
    data = readAsciiTable(dir_for_wrf_output + filename, (1+nlevels), "float", 1)
       data!0       = "time"
@@ -388,8 +490,7 @@ do ss = 0, dimsizes(station_id)-1
       data@grid_x  = grid_x
       data@grid_y  = grid_y
       data@coordinates   = "time sigma lat lon" ;
-
-   v_profile = data(:,1:dimsizes(sigma))
+      v_profile = data(:,1:dimsizes(sigma))
       v_profile!1     = "sigma"
       v_profile&sigma = sigma
 
@@ -397,7 +498,6 @@ do ss = 0, dimsizes(station_id)-1
    v_profile@description   = "Northward Wind Speed"
    v_profile@standard_name = "northward_wind"
    v_profile@units         = "m s-1"
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -408,12 +508,15 @@ do ss = 0, dimsizes(station_id)-1
    wind_speed_profile@standard_name = "wind_speed"
    wind_speed_profile@units         = "m s-1"
 
+
    wind_dir_profile = v_profile
-   wind_dir_profile(:,:) = (/ atan2(-u_profile, -v_profile) /)
+   wind_dir_profile(:,:) = (/ atan2(-u_profile, -v_profile) /) * 180 / 3.14159265359
    wind_dir_profile@long_name     = "Wind Direction"
    wind_dir_profile@description   = "Wind Direction"
    wind_dir_profile@standard_name = "wind_from_direction"
    wind_dir_profile@units         = "degree"
+
+   wind_dir_profile  = where(wind_dir_profile.le.0,  wind_dir_profile + 360 ,wind_dir_profile)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -529,6 +632,38 @@ if (tke_on) then
 
 end if
 
+
+if (tke_on) then
+
+   delete(data)
+
+   filename = station_id(ss) + domainstring + "WW"
+
+   data = readAsciiTable(dir_for_wrf_output + filename, (1+nlevels), "float", 1)
+      data!0       = "time"
+      data&time    =  time
+      data@lat     = latitude_wrf
+      data@lon     = longitude_wrf
+      data@lat_sta = latitude_sta
+      data@lon_sta = longitude_sta
+      data@elev    = elev
+      data@domain  = domain
+      data@grid_x  = grid_x
+      data@grid_y  = grid_y
+      data@coordinates   = "time sigma_w lat lon" ;
+
+
+   vertical_velocity_profile = data(:,1:dimsizes(sigma_w))
+      vertical_velocity_profile!1       = "sigma_w"
+      vertical_velocity_profile&sigma_w = sigma_w
+
+   vertical_velocity_profile@long_name     = "Vertical Velocity"
+   vertical_velocity_profile@description   = "Vertical Velocity"
+   vertical_velocity_profile@standard_name = "upward_air_velocity"
+   vertical_velocity_profile@units         = "m s-1"
+
+end if
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -597,10 +732,10 @@ end if
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-setfileoption("nc","Format","NetCDF4")  ; these are going to be big files
-setfileoption("nc","CompressionLevel",5)
+   setfileoption("nc","Format","NetCDF4")  ; these are going to be big files
+   setfileoption("nc","CompressionLevel",5)
 
-    wrf_file= "nam02_d" + sprinti("%0.2i", tointeger(domain)) + "_" + \
+    wrf_file= "wrfout_d" + sprinti("%0.2i", tointeger(domain)) + "_" + \
               datestring + "_" + hourstring + "_" + station_id(ss) + ".nc"
 
     system("rm -frv "+dir_for_wrf_output + wrf_file)
@@ -619,7 +754,13 @@ setfileoption("nc","CompressionLevel",5)
 
       nc->time         = time
       nc->sigma        = sigma
+      nc->sigma_w      = sigma_w
       nc->soil_levels  = soil_levels
+
+      nc->sigma_bounds = sigma_bounds
+      nc->sigma_w_bounds = sigma_w_bounds
+      nc->soil_level_bounds = soil_level_bounds
+
       nc->lat          = latitude_wrf
       nc->lon          = longitude_wrf
       nc->alt          = elev
@@ -642,6 +783,8 @@ setfileoption("nc","CompressionLevel",5)
       nc->clw          = clw
       nc->ptop         = ptop
 
+
+
       nc->u_wind_profile                      = u_profile
       nc->v_wind_profile                      = v_profile
       nc->wind_speed_profile                  = wind_speed_profile
@@ -652,6 +795,7 @@ setfileoption("nc","CompressionLevel",5)
 
       if (tke_on) then
          nc->turbulent_kinetic_energy_profile = turbulent_kinetic_energy_profile
+         nc->vertical_velocity_profile = vertical_velocity_profile
       end if
 
       if (soils_on) then
@@ -659,11 +803,41 @@ setfileoption("nc","CompressionLevel",5)
          nc->soil_moisture_profile    = soil_moisture_profile
       end if
 
+      delete(time)
+      delete(temperature)
+      delete(rh)
+      delete(dewpoint)
+      delete(q)
+      delete(u)
+      delete(w)
+      delete(v)
+      delete(psfc)
+      delete(glw)
+      delete(gsw)
+      delete(hfx)
+      delete(lfx)
+      delete(tskin)
+      delete(tsoil_top)
+      delete(rainc)
+      delete(rainnc)
+      delete(clw)
+      delete(data)
+      delete(data2)
+      delete(wind_dir_profile)
+      delete(wind_speed_profile)
+      delete(v_profile)
+      delete(u_profile)
+      delete(potential_temperature_profile)
+      delete(specific_humidity_profile)
+      delete(geopotential_height_profile)
+      delete(turbulent_kinetic_energy_profile)
+      delete(vertical_velocity_profile)
+      delete(soil_temperature_profile)
+      delete(soil_moisture_profile)
+      delete(soil_levels_2d)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-   printVarSummary(time)
-
-   delete(data)
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 end do
+
 
 end
