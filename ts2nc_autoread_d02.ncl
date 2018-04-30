@@ -36,8 +36,7 @@ begin
     run_date = systemfunc("cat " + wrf_program_root_dir + "current_day.txt")
 
 
-      wrf_full_model_file =  "wrfout_"+domainstring_code+"_"+run_date
-      wrf_full_model_file =  "wrfout_"+domainstring_code+"_"+run_date+":00:00"
+      wrf_full_model_file =  "wrfout_"+domainstring_code+"_"+run_date+"_F00"
 
     print(""+wrf_full_model_file)
 
