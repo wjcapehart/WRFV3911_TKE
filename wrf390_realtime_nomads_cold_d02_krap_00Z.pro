@@ -23,22 +23,22 @@
 
    if (hostname eq "hurricane.ias.sdsmt.edu") then begin
          NUMBEROFPROCS = '32'
-	 CO_NODE       = "gale.ias.sdsmt.edu"
+	      CO_NODE       = "gale.ias.sdsmt.edu"
    endif
 
    if (hostname eq "gale.ias.sdsmt.edu") then begin
          NUMBEROFPROCS = '32'
-	 CO_NODE       = "hurricane.ias.sdsmt.edu"
+	      CO_NODE       = "hurricane.ias.sdsmt.edu"
    endif
 
    if (hostname eq "maelstrom.ias.sdsmt.edu") then begin
          NUMBEROFPROCS =  '32'
-	 CO_NODE       = "cyclone.ias.sdsmt.edu"
+	      CO_NODE       = "cyclone.ias.sdsmt.edu"
    endif
 
    if (hostname eq "cyclone.ias.sdsmt.edu") then begin
-         NUMBEROFPROCS =  '24'
-	 CO_NODE       = "maelstrom.ias.sdsmt.edu"
+         NUMBEROFPROCS =  '48'
+	      CO_NODE       = "maelstrom.ias.sdsmt.edu"
    endif
 
     print, "RUNNING on "+hostname+" and "+CO_NODE
@@ -122,8 +122,8 @@
    WRF_REAL_CMD          = ' nohup    real.exe   >& real.log  '
    WRF_WRF_CMD           = ' nohup    wrf.exe    >& wrf.log '
 
-   WRF_REAL_CMD          = ' mpiexec --hostfile ~/nodeswrf --display-allocation --np '+ NUMBEROFPROCS + ' ./real.exe    '
-   WRF_WRF_CMD           = ' mpiexec --hostfile ~/nodeswrf --display-allocation --np '+ NUMBEROFPROCS + ' ./wrf.exe    '
+   WRF_REAL_CMD          = ' mpiexec --hostfile ~/nodeswrf --display-map  --display-allocation --np '+ NUMBEROFPROCS + ' ./real.exe    '
+   WRF_WRF_CMD           = ' mpiexec --hostfile ~/nodeswrf --display-map  --display-allocation --np '+ NUMBEROFPROCS + ' ./wrf.exe    '
 
 
 
@@ -467,7 +467,7 @@
 
          spawn, "cat obs_????-??-??_????.txt > obs_bigfile.txt"
 
-         spawn, "RT_fdda_reformat_obsnud.pl obs_bigfile.txt"
+         spawn, "./RT_fdda_reformat_obsnud.pl obs_bigfile.txt"
 
          spawn, "mv -v obs_bigfile.txt.obsnud  OBS_DOMAIN101"
 
